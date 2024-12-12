@@ -76,3 +76,50 @@ if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
     
  http://Rainnproxy123:8080/api/repos/octocat/Hello-World
+
+sudo apt update
+sudo apt install openvpn easy-rsa
+
+make-cadir ~/openvpn-ca
+cd ~/openvpn-ca
+source vars
+./clean-all
+./build-ca
+
+./build-key-server server
+
+./build-key client1
+
+sudo systemctl start openvpn@server
+sudo systemctl enable openvpn@server
+
+sudo openvpn --config client1.ovpn
+
+sudo apt install wireguard
+
+wg genkey | tee server_private_key | wg pubkey > server_public_key
+
+wg genkey | tee client_private_key | wg pubkey > client_public_key
+
+[Interface]
+Address = 10.0.0.1/24
+PrivateKey = <server-private-key>
+ListenPort = 51820
+
+[Peer]
+PublicKey = <client-public-key>
+AllowedIPs = 10.0.0.2/32
+
+[Interface]
+PrivateKey = <client-private-key>
+Address = 10.0.0.2/24
+
+[Peer]
+PublicKey = <server-public-key>
+Endpoint = <server-ip>:51820
+AllowedIPs = 0.0.0.0/0
+
+sudo wg-quick up wg0
+
+sudo wg-quick up wg0
+
