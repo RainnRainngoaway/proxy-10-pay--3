@@ -1,0 +1,78 @@
+pip install Flask requests
+
+import requests
+from flask import Flask, request, Response, jsonify
+from urllib.parse import urlparse
+import time
+
+# Initialize the Flask app
+app = Flask(__name__)
+
+# Rate limiting for GitHub API (e.g., 60 requests per hour)
+API_RATE_LIMIT = 60
+last_request_time = time.time()
+
+# GitHub base API URL
+GITHUB_API_URL = "https://api.github.com"
+
+# A function to check rate limits and ensure we don't exceed GitHub's API limits
+def check_rate_limit():
+    global last_request_time
+    current_time = time.time()
+
+    # Calculate elapsed time since the last request
+    elapsed_time = current_time - last_request_time
+    if elapsed_time < 60:  # If less than a minute passed
+        time.sleep(60 - elapsed_time)  # Wait to avoid rate limit
+
+    last_request_time = time.time()
+
+# Proxy route to forward requests to GitHub API
+@app.route('/api/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def github_api_proxy(path):
+    target_url = f"{GITHUB_API_URL}/{path}"
+    
+    # Check if the request is a GitHub API call
+    check_rate_limit()
+
+    # Forward the request to the target URL
+    if request.method == 'GET':
+        response = requests.get(target_url, headers=request.headers)
+    elif request.method == 'POST':
+        response = requests.post(target_url, data=request.data, headers=request.headers)
+    elif request.method == 'PUT':
+        response = requests.put(target_url, data=request.data, headers=request.headers)
+    elif request.method == 'DELETE':
+        response = requests.delete(target_url, headers=request.headers)
+
+    # Return the response content from GitHub
+    return Response(response.content, status=response.status_code, headers=dict(response.headers))
+
+# Proxy route for GitHub web pages (e.g., repository pages)
+@app.route('/web/<path:path>', methods=['GET'])
+def github_web_proxy(path):
+    target_url = f"https://github.com/{path}"
+
+    # Forward the GET request to the GitHub web page
+    response = requests.get(target_url)
+
+    # Return the response content (HTML)
+    return Response(response.content, status=response.status_code, content_type="text/html")
+
+# Simple homepage to explain the proxy functionality
+@app.route('/')
+def home():
+    return """
+    <h1>GitHub Proxy</h1>
+    <p>This proxy allows you to interact with GitHub APIs and web pages through a proxy server.</p>
+    <p>Example usage for GitHub API:</p>
+    <code>/api/repos/<your-username>/<your-repository></code>
+    <p>Example usage for GitHub web pages:</p>
+    <code>/web/<your-username>/<your-repository></code>
+    """
+
+if __name__ == '__main__':
+    # Run the Flask app on port 8080
+    app.run(debug=True, host='0.0.0.0', port=8080)
+    
+ http://Rainnproxy123:8080/api/repos/octocat/Hello-World
